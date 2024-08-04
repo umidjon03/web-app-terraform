@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
     bucket         = "terraform-backend-umidjon"
-    key            = "06-organization-and-modules/indeed-web-app/terraform.tfstate"
+    key            = "indeed/production/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "terraform-state-locking"
     encrypt        = true
@@ -25,17 +25,21 @@ variable "db_pass" {
   sensitive   = true
 }
 
+locals {
+  environment_name = "production"
+}
+
 module "indeed-app-module" {
   source = "../my_module"
 
   # Input Variables
-  bucket_prefix    = "indeed"
+  bucket_prefix    = "indeed-${local.environment_name}"
   domain           = "indeed-umidjon.com"
   app_name         = "indeed"
-  environment_name = "staging"
+  environment_name = local.environment_name
   instance_type    = "t2.micro"
-  create_dns_zone  = true
-  db_name          = "indeedDB"
+  create_dns_zone  = false
+  db_name          = "${local.environment_name}IndeedDB"
   db_user          = "foo"
   db_pass          = var.db_pass
 }
