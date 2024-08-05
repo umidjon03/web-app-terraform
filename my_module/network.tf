@@ -21,7 +21,7 @@ resource "aws_security_group_rule" "allow_http_inbound" {
 }
 
 resource "aws_security_group" "alb" {
-  name = "${var.app_name}-${var.environment_name}-instance-security-group"
+  name = "${var.app_name}-${var.environment_name}-alb-security-group"
 }
 
 resource "aws_security_group_rule" "allow_alb_http_inbound" {
