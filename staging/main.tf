@@ -36,7 +36,7 @@ module "indeed-app-module" {
   bucket_prefix    = "indeed-${local.environment_name}"
   domain           = "indeed-umidjon.com"
   app_name         = "indeed"
-  environment_name = "${local.environment_name}"
+  environment_name = local.environment_name
   instance_type    = "t2.micro"
   create_dns_zone  = false
   db_name          = "${local.environment_name}IndeedDB"
