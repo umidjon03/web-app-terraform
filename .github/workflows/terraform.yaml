@@ -9,6 +9,10 @@ on:
     types: [published]
   pull_request:
 
+permissions:
+  pull-requests: write
+  issues: write
+
 jobs:
   terraform:
     name: "Terraform"
