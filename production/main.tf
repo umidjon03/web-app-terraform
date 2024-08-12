@@ -30,7 +30,7 @@ locals {
 }
 
 module "indeed-app-module" {
-  source = "../my_module"
+  source = "../modules/aws"
 
   # Input Variables
   bucket_prefix    = "indeed-${local.environment_name}"
