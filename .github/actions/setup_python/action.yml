@@ -1,0 +1,71 @@
+name: 'Configure environment'
+
+description: 'Configure execution environment Python installation, dependencies installation'
+
+inputs:
+  python_version:
+    required: true
+    default: "3.8"
+    description: Python version
+
+
+runs:
+  using: composite
+  steps:
+    - name: Check python version
+      id: python_version
+      shell: bash
+      run: |
+        VERSION_FILE="${{ github.workspace }}/.python-version"
+        if [ -f "$VERSION_FILE" ]; then
+            echo ".python-version file exists reading version defined in it."
+            echo "pyversion=$(cat $VERSION_FILE)" >> $GITHUB_OUTPUT
+        else
+            echo ".python-version does not exist. Using default `3.8`"
+            echo "pyversion=${{ inputs.python_version }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup python
+      id: python_installation
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ steps.python_version.outputs.pyversion }}
+
+    - name: Restore cached content
+      id: restore_cache
+      uses: actions/cache/restore@v3
+      with:
+        path: |
+          ~/.cache/pypoetry
+        key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Output Cache parameters
+      id: output_cache
+      shell: bash
+      run: |
+        echo "Cache primary key: ${{ steps.restore_cache.outputs.cache-primary-key }}"
+        echo "Cache matched key: ${{ steps.restore_cache.outputs.cache-matched-key }}"
+        echo "Cache hit: ${{ steps.restore_cache.outputs.cache-hit }}"
+
+    - name: Setup poetry
+      id: environment_installation
+      shell: bash
+      run: |
+        python3 -m pip install --user pipx
+        python3 -m pipx ensurepath
+        pipx install poetry
+
+    - name: Poetry install
+      id: poetry_install
+      shell: bash
+      run: |
+        poetry install
+
+    - name: Save cache
+      id: save_cache
+      uses: actions/cache/save@v3
+      if: ${{ steps.restore_cache.outputs.cache-hit != 'true' }}
+      with:
+        path: |
+          ~/.cache/pypoetry
+        key: ${{ steps.restore_cache.outputs.cache-primary-key }}

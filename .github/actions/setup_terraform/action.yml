@@ -1,0 +1,117 @@
+name: 'terraform init'
+description: 'Composite action to configure environment and install terraform'
+
+
+inputs:
+  environment:
+    required: true
+    description: "AWS Environment for deployment"
+    default: "nonprod"
+  aws_account_id:
+    required: true
+    description: "Identifier of the AWS account where we store state files and where we will deploy"
+  tf_backend_config_key:
+    required: true
+    description: "Path to the state file inside the S3 Bucket"
+  tf_backend_config_bucket:
+    required: true
+    description: "Name of the S3 Bucket where to store state files"
+  tf_backend_config_region:
+    required: false
+    description: "AWS Region of the S3 Bucket"
+    default: "us-east-1"
+  install_aws_cli:
+    required: false
+    description: "If 'true' AWS CLI will be installed"
+    default: "false"
+  ghe_secret:
+    required: true
+    description: "GHE secret token"
+
+outputs:
+  terraform_installed_version:
+    description: "Output installed terraform version"
+    value: ${{ steps.configure_terraform_version.outputs.version }}
+
+
+runs:
+  using: composite
+  steps:
+    - name: Set environment vars
+      id: configure_environment_variables
+      shell: bash
+      run: |
+        echo "TERRAFORM_BACKED_CONFIG_KEY=terraform/${{ inputs.tf_backend_config_key }}/$(echo ${{ github.event.repository.name }} | tr '-' '_' | tr [:upper:] [:lower:])/${{ inputs.environment }}.tfstate" >> $GITHUB_ENV
+        echo "TERRAFORM_BACKED_CONFIG_BUCKET=${{ inputs.tf_backend_config_bucket }}" >> $GITHUB_ENV
+        echo "TERRAFORM_BACKED_CONFIG_REGION=${{ inputs.tf_backend_config_region }}" >> $GITHUB_ENV
+        echo "TF_ENV=${{ inputs.environment }}" >> $GITHUB_ENV
+
+    - name: Establish secure session to AWS ${{ inputs.aws_account_id }}
+      id: establish_secure_connection
+      uses: cai-actions/aws-secure-access@v1
+      with:
+        account: ${{ inputs.aws_account_id }}
+
+    - name: Install AWS CLI
+      if: ${{ inputs.install_aws_cli == 'true'}}
+      id: install_aws_cli
+      shell: bash
+      run: |
+        pip install awscli
+
+    - name: Setup git config for private module checkout
+      id: configure_global_git_config
+      shell: bash
+      run: git config --global url."https://git:${{ inputs.ghe_secret }}@ghe.coxautoinc.com".insteadOf ssh://git@ghe.coxautoinc.com
+
+    - name: Setup NodeJS
+      id: setup_nodejs
+      uses: actions/setup-node@v2
+      with:
+        node-version: '16'
+
+    - name: Check terraform version
+      id: configure_terraform_version
+      shell: bash
+      run: |
+        VERSION_FILE="${{ github.workspace }}/.terraform-version"
+        if [ -f "$VERSION_FILE" ]; then
+            echo ".terraform-version file exists reading version defined in it."
+            echo "version=$(cat $VERSION_FILE)" >> $GITHUB_OUTPUT
+        else
+            echo ".terraform-version does not exist. Using `1.3.6`"
+            echo "version=1.3.6" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup terraform
+      id: setup_terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: ${{ steps.configure_terraform_version.outputs.version }}
+
+    - name: Terraform init
+      id: terraform_init
+      shell: bash
+      run: |
+        if [ ${{ steps.configure_terraform_version.outputs.version }} = 0.13.6 ]; then
+          terraform init \
+            -backend-config=key=${{ env.TERRAFORM_BACKED_CONFIG_KEY }} \
+            -backend-config=bucket=${{ env.TERRAFORM_BACKED_CONFIG_BUCKET }} \
+            -backend-config=region=${{ env.TERRAFORM_BACKED_CONFIG_REGION }} \
+            ./terraform/
+        else
+          terraform -chdir=terraform init \
+            -backend-config=key=${{ env.TERRAFORM_BACKED_CONFIG_KEY }} \
+            -backend-config=bucket=${{ env.TERRAFORM_BACKED_CONFIG_BUCKET }} \
+            -backend-config=region=${{ env.TERRAFORM_BACKED_CONFIG_REGION }}
+        fi
+
+    - name: Terraform validate
+      id: terraform_validate
+      shell: bash
+      run: |
+        if [ ${{ steps.configure_terraform_version.outputs.version }} = 0.13.6 ]; then
+          terraform validate -no-color ./terraform/
+        else
+          terraform -chdir=terraform validate
+        fi
