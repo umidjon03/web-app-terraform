@@ -4,8 +4,8 @@ resource "snowflake_grant_database_role" "db_to_account" {
 }
 
 resource "snowflake_grant_account_role" "role_to_user" {
-  role_name   = snowflake_account_role.account_reader_role.name
-  user_name   = snowflake_user.user.name
+  role_name = snowflake_account_role.account_reader_role.name
+  user_name = snowflake_user.user.name
 }
 
 resource "snowflake_grant_privileges_to_database_role" "usage_db" {
@@ -50,7 +50,7 @@ resource "snowflake_grant_privileges_to_account_role" "warehouse_access" {
 }
 
 # resource "snowflake_warehouse_grant" "warehouse_grant" {
-  
+
 #   warehouse_name = snowflake_warehouse.task_warehouse.name
 #   privilege      = "USAGE"
 #   roles          = ["TF_DEMO_READER"]
