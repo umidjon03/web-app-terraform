@@ -1,0 +1,171 @@
+name: 'Manage Change Request'
+
+description: 'Create/Update/Close Change Request'
+
+inputs:
+  change_request:
+    required: false
+    description: Unique Change Request id. Required for redeployment's, when CRQ already created.
+  primary_ci:
+    required: false
+    description: Component identifier
+  description:
+    required: false
+    description: Change request description
+  short_description:
+    required: false
+    description: Short change request description (160 symbols)
+  work_notes:
+    required: false
+    description: Change request work notes
+  assignment_group:
+    required: false
+    default: "LOG - Jarvis"
+    description: Assignment group
+  category:
+    required: false
+    default: "Code Deploy"
+    description: Deployment category
+  environment:
+    required: false
+    default: "Production"
+    description: Deployment environment (Production, etc)
+  impact:
+    required: false
+    default: "Small"
+    description: Deployment impact (Small, Medium, High)
+  scope:
+    required: false
+    default: "Tiny"
+    description: Deployment Scope
+  start_date:
+    required: false
+    description: Deployment start time
+  end_date:
+    required: false
+    description: Deployment end time
+  sandbox_mode:
+    required: false
+    default: "false"
+    description: Create change request in sandbox
+  action:
+    required: true
+    description: "Change request management action" # start, close
+  close_code:
+    required: false
+    default: "Successful"
+    description: Deployment close code
+  close_note_text:
+    required: false
+    default: "Changes were successful."
+    description: Deployment close note text
+
+outputs:
+  change_request_number:
+    description: "Created Change Request number"
+    value: ${{ steps.print_change_request_number.outputs.CHANGE_REQUEST_NUMBER }}
+
+runs:
+  using: composite
+  steps:
+    - name: Display Change Request creation details
+      id: display_create_change_request_parameters
+      if: ${{ inputs.action == 'start' && inputs.change_request == null }}
+      shell: python
+      run: |
+        import json
+        change_request = {
+          "Short description": "${{ inputs.short_description }}",
+          "Description": "${{ inputs.description }}",
+          "Work Notes": "${{ inputs.work_notes }}",
+          "Assignment Group": "${{ inputs.assignment_group }}",
+          "Category": "${{ inputs.category }}",
+          "Environment": "${{ inputs.environment }}",
+          "Impact": "${{ inputs.impact }}",
+          "Scope": "${{ inputs.scope }}",
+          "Deployment start date": "${{ inputs.start_date }}",
+          "Deployment end date": "${{ inputs.end_date }}",
+          "Component ID": "${{ inputs.primary_ci }}",
+          "Sandbox mode": "${{ inputs.sandbox_mode }}",
+        }
+        print("Create CRQ parameters:")
+        print(json.dumps(change_request, indent=4))
+
+    - name: Display Change Request closing details
+      id: display_close_change_request_parameters
+      if: ${{ inputs.action == 'close' }}
+      shell: python
+      run: |
+        import json
+        change_request = {
+          "Change request": "${{ inputs.change_request }}",
+          "Close code": "${{ inputs.close_code }}",
+          "Close note text": "${{ inputs.close_note_text }}",
+          "Sandbox mode": "${{ inputs.sandbox_mode }}",
+        }
+        print("Close CRQ parameters:")
+        print(json.dumps(change_request, indent=4))
+
+    - name: Display Change Request redeployment details
+      id: display_redeploy_change_request_parameters
+      if: ${{ inputs.action == 'start' && inputs.change_request != null }}
+      shell: python
+      run: |
+        import json
+        change_request = {
+          "Change request": "${{ inputs.change_request }}",
+          "Short description": "${{ inputs.short_description }}",
+          "Work note text": "${{ inputs.work_notes }}",
+          "Sandbox mode": "${{ inputs.sandbox_mode }}",
+        }
+        print("Redeploy CRQ parameters:")
+        print(json.dumps(change_request, indent=4))
+
+    - name: Create change request
+      if: ${{ inputs.action == 'start' && inputs.change_request == null }} # Change request will be created or if it already exists this step will be skipped
+      id: create_change_request
+      uses: cai-actions/change-request-create@v1
+      with:
+        primary_ci_number: ${{ inputs.primary_ci }}
+        short_description: ${{ inputs.short_description }}
+        description: ${{ inputs.description }}
+        assignment_group: ${{ inputs.assignment_group }}
+        category: ${{ inputs.category }}
+        environment: ${{ inputs.environment }}
+        impact: ${{ inputs.impact }}
+        scope: ${{ inputs.scope }}
+        start_date: ${{ inputs.start_date }}
+        end_date: ${{ inputs.end_date }}
+        sandbox_mode: ${{ inputs.sandbox_mode }}
+
+    - name: Change number output
+      id: print_change_request_number
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.change_request }}" ]
+        then
+          change_number="${{ steps.create_change_request.outputs.change_number }}"
+        else
+          change_number="${{ inputs.change_request }}"
+        fi
+        echo "::notice::Change Request number: $change_number"
+        echo "CHANGE_REQUEST_NUMBER=$change_number" >> $GITHUB_OUTPUT
+
+    - name: Adds a work note to a change request
+      if: ${{ inputs.action == 'start' && inputs.change_request != null }}
+      id: add_work_note
+      uses: cai-actions/change-request-add-worknote@v1
+      with:
+        change_request_number: ${{ inputs.change_request }}
+        worknote_text: ${{ inputs.work_notes }}
+        sandbox_mode: ${{ inputs.sandbox_mode }}
+
+    - name: Close Change Request
+      id: close_change_request
+      if: ${{ inputs.action == 'close' && inputs.change_request != null}}
+      uses: cai-actions/change-request-close@v1
+      with:
+        change_request_number: ${{ inputs.change_request }}
+        close_code: ${{ inputs.close_code }}
+        close_note_text: ${{ inputs.close_note_text }}
+        sandbox_mode: ${{ inputs.sandbox_mode }}

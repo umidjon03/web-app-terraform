@@ -1,0 +1,24 @@
+name: 'Create repository release'
+description: 'Composite action to create GitHub repository tag'
+
+
+runs:
+  using: composite
+  steps:
+    - name: Get deployment date
+      id: get_current_date
+      shell: bash
+      run: |
+        echo "tag_date=$(date +%Y-%m-%dT%H.%M.%S)" >> $GITHUB_OUTPUT
+
+    - name: Generate tag
+      id: create_tag
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.git.createRef({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: 'refs/tags/${{ steps.get_current_date.outputs.tag_date }}',
+            sha: context.sha
+          })

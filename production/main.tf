@@ -1,38 +1,6 @@
-terraform {
-  backend "s3" {
-    bucket         = "terraform-backend-umidjon"
-    key            = "indeed/production/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-state-locking"
-    encrypt        = true
-  }
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 3.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "us-east-1"
-}
-
-variable "db_pass" {
-  description = "password for database"
-  type        = string
-  sensitive   = true
-}
-
-locals {
-  environment_name = "production"
-}
-
 module "indeed-app-module" {
   source = "../modules/aws"
 
-  # Input Variables
   bucket_prefix    = "indeed-${local.environment_name}"
   domain           = "indeed-umidjon.com"
   app_name         = "indeed"
@@ -42,4 +10,12 @@ module "indeed-app-module" {
   db_name          = "${local.environment_name}IndeedDB"
   db_user          = "foo"
   db_pass          = var.db_pass
+}
+
+module "snowflake_resources" {
+  source              = "../modules/snowflake"
+  time_travel_in_days = 1
+  database            = var.database
+  environment_name    = local.environment_name
+  user_password       = var.user_password
 }

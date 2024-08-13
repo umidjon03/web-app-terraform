@@ -1,5 +1,6 @@
 module "indeed-app-module" {
-  source           = "../modules/aws"
+  source = "../modules/aws"
+
   bucket_prefix    = "indeed-${local.environment_name}"
   domain           = "indeed-umidjon.com"
   app_name         = "indeed"
