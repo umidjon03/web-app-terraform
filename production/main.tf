@@ -17,5 +17,5 @@ module "snowflake_resources" {
   time_travel_in_days = 1
   database            = var.database
   environment_name    = local.environment_name
-  user_password       = var.user_password
+  user_password       = var.user_password_prod
 }
