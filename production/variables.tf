@@ -4,7 +4,7 @@ variable "db_pass" {
   sensitive   = true
 }
 
-variable "user_password_prod" {
+variable "user_password" {
   description = "password for snowflake user"
   type        = string
   sensitive   = true
