@@ -1,1 +1,1 @@
-database              = "Hello"
+database = "Hello"
