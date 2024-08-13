@@ -111,4 +111,4 @@ jobs:
         working-directory: production
         run: |
           terraform init
-          terraform apply -var db_pass=${{secrets.DB_PASS }} -var user_password=${{secrets.USER_PASSWORD }} -auto-approve
+          terraform apply -var db_pass=${{secrets.DB_PASS }} -var user_password=${{secrets.USER_PASSWORD_PROD }} -auto-approve
